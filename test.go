@@ -1,13 +1,14 @@
 package main
 
 import (
-	//"fmt"
-	"github.com/gorilla/mux"
+	"fmt"
 	"net/http"
+	"time"
+	
+	"github.com/gorilla/mux"
 	"encoding/json"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"time"
 )
 
 func main() {
@@ -23,11 +24,12 @@ func main() {
 	getSubrouter.HandleFunc("/api/v1", describe)
 	
 	getSubrouter.HandleFunc("/api/v1/search", search)
-	getSubrouter.HandleFunc("/api/v1/searchGameData", searchGameData)
+	getSubrouter.HandleFunc("/api/v1/searchPlayerData", searchPlayerData)
+	getSubrouter.HandleFunc("/api/v1/registerNewPlayer", registerNewPlayer)
 	getSubrouter.HandleFunc("/api/v1/display", display)
 
 	postSubrouter.HandleFunc("/api/v1/insert", insert)
-	postSubrouter.HandleFunc("/api/v1/insertGameData", insertGameData)
+	postSubrouter.HandleFunc("/api/v1/insertPlayerData", insertPlayerData)
 
 	putSubrouter.HandleFunc("/api/v1/update", update)
 
@@ -69,7 +71,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	query := bson.M{
 		"n": name,
 	}
-	
+		
 	s, err := mgo.Dial("localhost:27017")
 	
 	if err != nil {
@@ -79,14 +81,79 @@ func search(w http.ResponseWriter, r *http.Request) {
 	c := s.DB("game").C("current")
 	
 	results:= []searchOutput{}
-	
 	c.Find(query).Sort("n").All(&results)
-	out, _  := json.MarshalIndent(results," ","  ")
-	w.Write(out)
+	
+	if len(results) != 0 {
+		out, _  := json.MarshalIndent(results," ","  ")
+		w.Write(out)
+	} else {
+		fmt.Println(len(results)) 
+		results := searchOutput{name,"-1","-1","-1","-1","-1"}
+		out, _  := json.MarshalIndent(results," ","  ")
+		w.Write(out)
+	}
+		
 	s.Close()
 }
 
-func searchGameData(w http.ResponseWriter, r *http.Request) {
+
+func registerNewPlayer(w http.ResponseWriter, r *http.Request) {
+	
+	type searchOutput struct {	
+		Name      string        `bson:"n"`
+		UserID    string        `bson:"id"`
+		Score	  string        `bson:"sc"`
+		Time	  string        `bson:"t"`
+		Level	  string        `bson:"l"`
+	}
+	
+	urlValues := r.URL.Query()
+	name := urlValues.Get("name")
+	
+	query := bson.M{
+		"n": name,
+	}
+	
+	s, err := mgo.Dial("localhost:27017")
+	
+	if err != nil {
+		panic(err)
+	}
+	
+	c := s.DB("game").C("player")
+	
+	results:= []searchOutput{}
+	c.Find(query).Sort("n").All(&results)
+		
+	if len(results)!=0 {
+		fmt.Printf("Player with username %s already exists", name)
+		out, _  := json.MarshalIndent(results," ","  ")
+		w.Write(out)
+	} else {	
+			
+			newPlayer := bson.M {
+			"n": name,
+			"id": id,
+			"sc": "0",
+			"t": "0",
+			"l": "0",
+			}
+			
+			err = c.Insert(newPlayer)
+	
+			if err != nil {
+				panic(err)
+			}
+			out, _  := json.MarshalIndent(newPlayer," ","  ")
+			w.Write(out)
+			i:=i+1		
+}
+	fmt.Printf("%d", i)
+	s.Close()
+
+}
+
+func searchPlayerData(w http.ResponseWriter, r *http.Request) {
 	
 	type searchOutput struct {	
 		Name      string        `bson:"n"`
@@ -201,7 +268,7 @@ func insert(w http.ResponseWriter, r *http.Request) {
 	
 }
 
-func insertGameData(w http.ResponseWriter, r *http.Request) {
+func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 	
 	err := r.ParseForm()
 	
