@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"labix.org/v2/mgo"
@@ -18,9 +17,9 @@ func main() {
 	mainRouter := mux.NewRouter()
 
 	getSubrouter := mainRouter.Methods("GET").Subrouter()
-	postSubrouter := mainRouter.Methods("POST").Subrouter()
-	putSubrouter := mainRouter.Methods("PUT").Subrouter()
-	deleteSubrouter := mainRouter.Methods("DELETE").Subrouter()
+	postSubrouter := mainRouter.Methods("POST").Headers("key", "").Subrouter()
+	putSubrouter := mainRouter.Methods("PUT").Headers("key", "").Subrouter()
+	deleteSubrouter := mainRouter.Methods("DELETE").Headers("key", "").Subrouter()
 
 	http.Handle("/", mainRouter)
 
@@ -45,6 +44,9 @@ func main() {
 	postSubrouter.HandleFunc("/api/v1/histosry", insertHistory)//history
 	putSubrouter.HandleFunc("/api/v1/history", notAllowed)//player
 	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)//player
+	
+	postSubrouter.HandleFunc("/api/v1/testauth", testAuth)//test
+	
 
 	err := http.ListenAndServe(":8081", nil)
 
@@ -383,6 +385,48 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(501)
 	w.Write([]byte(msg))
 	
+}
+
+func testAuth(w http.ResponseWriter, r *http.Request){
+	
+	if authenticate(r.Header) {
+		w.Write([]byte("authenticated"))
+	} else{
+		w.Write([]byte("skata na fas"))
+	}
+	
+}
+
+func authenticate(h http.Header) bool {
+	
+	type Auth struct {
+		ApiKey string `bson:"apiKey"`
+	}
+
+	s, err := mgo.Dial("localhost:27017")
+
+	if err != nil {
+		panic(err)
+	}
+
+	c := s.DB("game").C("authentication")
+	
+	query := bson.M{
+		"apiKey": h.Get("key"),
+	}
+
+	results := []Auth{}
+
+ 	c.Find(query).All(&results)
+	
+	if err != nil {
+		return false
+	}
+
+	if len(results) > 0 {
+		return true
+	}
+	return false
 }
 //func newPlayer() {
 //}
