@@ -41,7 +41,7 @@ func main() {
 	 
 	//history
 	getSubrouter.HandleFunc("/api/v1/history", displayHistory)//history
-	postSubrouter.HandleFunc("/api/v1/histosry", insertHistory)//history
+	postSubrouter.HandleFunc("/api/v1/history", insertHistory)//history
 	putSubrouter.HandleFunc("/api/v1/history", notAllowed)//player
 	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)//player
 	
