@@ -43,17 +43,7 @@ func main() {
 	putSubrouter.HandleFunc("/api/v1/history", notAllowed) //history
 	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed) //history
 	
-	//getSubrouter.HandleFunc("/api/v1/search", search)
-	//getSubrouter.HandleFunc("/api/v1/searchPlayerData", searchPlayerData)
-	//getSubrouter.HandleFunc("/api/v1/registerNewPlayer", registerNewPlayer)
-	//getSubrouter.HandleFunc("/api/v1/display", display)
-
-	//postSubrouter.HandleFunc("/api/v1/insert", insert)
-	//postSubrouter.HandleFunc("/api/v1/insertPlayerData", insertPlayerData)
-	
 	postSubrouter.HandleFunc("/api/v1/testauth", testAuth) //test
-
-	//putSubrouter.HandleFunc("/api/v1/update", update)
 
 	err := http.ListenAndServe(":8081", nil)
 
