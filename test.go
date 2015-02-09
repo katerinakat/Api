@@ -27,7 +27,7 @@ func main() {
 	
 	//current
 	getSubrouter.HandleFunc("/api/v1/current", searchCurrent) //current
-	putSubrouter.HandleFunc("/api/v1/current", updateCurrent) //current
+	postSubrouter.HandleFunc("/api/v1/current", updateCurrent) //current
 	putSubrouter.HandleFunc("/api/v1/current", notAllowed) //current
 	deleteSubrouter.HandleFunc("/api/v1/current", notAllowed) //current
 	
@@ -65,8 +65,13 @@ func registerNewPlayer(w http.ResponseWriter, r *http.Request) {
 		Time   string `bson:"t"`
 		Level  string `bson:"l"`
 	}
-
-	urlValues := r.URL.Query()
+	err := r.ParseForm()	
+	
+	if err != nil {
+		fmt.Println("PROBLEM!!!")
+	}
+	
+	urlValues := r.Form
 	name := urlValues.Get("name")
 
 	query := bson.M{
@@ -426,7 +431,3 @@ func authenticate(h http.Header) bool {
 	return false
 }
 
-//func newPlayer() {
-//}
-//func newGameData(){
-//}
