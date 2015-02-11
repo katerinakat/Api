@@ -394,7 +394,7 @@ func testAuth(w http.ResponseWriter, r *http.Request){
 	if authenticate(r.Header) {
 		w.Write([]byte("authenticated"))
 	} else{
-		w.Write([]byte("skata na fas"))
+		w.Write([]byte("No."))
 	}
 	
 }
