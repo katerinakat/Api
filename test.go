@@ -94,7 +94,7 @@ func registerNewPlayer(w http.ResponseWriter, r *http.Request) {
 		out, _ := json.MarshalIndent(results, " ", "  ")
 		w.Write(out)
 	} else {
-		id := "foo"
+		id := len(results)++;
 		newPlayer := bson.M{
 			"n":  name,
 			"id": id,
