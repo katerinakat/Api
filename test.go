@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"time"
-	"github.com/gorilla/mux"
 	"encoding/json"
+	"fmt"
+	"github.com/gorilla/mux"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"net/http"
+	"time"
+	"strconv"
 )
 
 //ROUTING
@@ -20,29 +21,29 @@ func main() {
 	postSubrouter := mainRouter.Methods("POST").Headers("key", "").Subrouter()
 	putSubrouter := mainRouter.Methods("PUT").Headers("key", "").Subrouter()
 	deleteSubrouter := mainRouter.Methods("DELETE").Headers("key", "").Subrouter()
-	
+
 	http.Handle("/", mainRouter)
-	
+
 	getSubrouter.HandleFunc("/api/v1", describe)
-	
+
 	//current
-	getSubrouter.HandleFunc("/api/v1/current", searchCurrent) //current
+	getSubrouter.HandleFunc("/api/v1/current", searchCurrent)  //current
 	postSubrouter.HandleFunc("/api/v1/current", updateCurrent) //current
-	putSubrouter.HandleFunc("/api/v1/current", notAllowed) //current
-	deleteSubrouter.HandleFunc("/api/v1/current", notAllowed) //current
-	
+	putSubrouter.HandleFunc("/api/v1/current", notAllowed)     //current
+	deleteSubrouter.HandleFunc("/api/v1/current", notAllowed)  //current
+
 	//player
-	getSubrouter.HandleFunc("/api/v1/player", searchPlayerData) //player
+	getSubrouter.HandleFunc("/api/v1/player", searchPlayerData)   //player
 	postSubrouter.HandleFunc("/api/v1/player", registerNewPlayer) //player
-	putSubrouter.HandleFunc("/api/v1/player", insertPlayerData) //player
-	deleteSubrouter.HandleFunc("/api/v1/player", notImplemented) //player
-	
+	putSubrouter.HandleFunc("/api/v1/player", insertPlayerData)   //player
+	deleteSubrouter.HandleFunc("/api/v1/player", notImplemented)  //player
+
 	//history
 	getSubrouter.HandleFunc("/api/v1/history", displayHistory) //history
 	postSubrouter.HandleFunc("/api/v1/history", insertHistory) //history
-	putSubrouter.HandleFunc("/api/v1/history", notAllowed) //history
-	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed) //history
-	
+	putSubrouter.HandleFunc("/api/v1/history", notAllowed)     //history
+	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)  //history
+
 	postSubrouter.HandleFunc("/api/v1/testauth", testAuth) //test
 
 	err := http.ListenAndServe(":8081", nil)
@@ -58,61 +59,69 @@ func main() {
 
 func registerNewPlayer(w http.ResponseWriter, r *http.Request) {
 
-	type searchOutput struct {
-		Name   string `bson:"n"`
-		UserID string `bson:"id"`
-		Score  string `bson:"sc"`
-		Time   string `bson:"t"`
-		Level  string `bson:"l"`
-	}
-	err := r.ParseForm()	
-	
-	if err != nil {
-		fmt.Println("PROBLEM!!!")
-	}
-	
-	urlValues := r.Form
-	name := urlValues.Get("name")
+	if authenticate(r.Header) {
+		w.Write([]byte("authenticated "))
 
-	query := bson.M{
-		"n": name,
-	}
+		type searchOutput struct {
+			Name   string `bson:"n"`
+			UserID string `bson:"id"`
+			Score  string `bson:"sc"`
+			Time   string `bson:"t"`
+			Level  string `bson:"l"`
+		}
+		err := r.ParseForm()
 
-	s, err := mgo.Dial("localhost:27017")
-
-	if err != nil {
-		panic(err)
-	}
-
-	c := s.DB("game").C("player")
-
-	results := []searchOutput{}
-	c.Find(query).Sort("n").All(&results)
-
-	if len(results) != 0 {
-		fmt.Printf("Player with username %s already exists", name)
-		out, _ := json.MarshalIndent(results, " ", "  ")
-		w.Write(out)
-	} else {
-		id := len(results)++;
-		newPlayer := bson.M{
-			"n":  name,
-			"id": id,
-			"sc": "0",
-			"t":  "0",
-			"l":  "0",
+		if err != nil {
+			fmt.Println("PROBLEM!!!")
 		}
 
-		err = c.Insert(newPlayer)
+		urlValues := r.Form
+		name := urlValues.Get("name")
+
+		query := bson.M{
+			"n": name,
+		}
+
+		s, err := mgo.Dial("localhost:27017")
 
 		if err != nil {
 			panic(err)
 		}
-		out, _ := json.MarshalIndent(newPlayer, " ", "  ")
-		w.Write(out)
-	}
-	s.Close()
 
+		c := s.DB("game").C("player")
+
+		results := []searchOutput{}
+		length := []searchOutput{}
+
+		c.Find(query).Sort("n").All(&results)
+		c.Find(nil).All(&length)
+
+		if len(results) != 0 {
+			fmt.Printf("Player with username %s already exists", name)
+			out, _ := json.MarshalIndent(results, " ", "  ")
+			w.Write(out)
+		} else {
+			id := strconv.Itoa(len(length) + 1)
+			newPlayer := bson.M{
+				"n":  name,
+				"id": id,
+				"sc": "0",
+				"t":  "0",
+				"l":  "0",
+			}
+
+			err = c.Insert(newPlayer)
+
+			if err != nil {
+				panic(err)
+			}
+			out, _ := json.MarshalIndent(newPlayer, " ", "  ")
+			w.Write(out)
+		}
+		s.Close()
+	} else {
+		w.Write([]byte("failed to authenticate"))
+	}
 }
 
 func searchPlayerData(w http.ResponseWriter, r *http.Request) {
@@ -150,86 +159,96 @@ func searchPlayerData(w http.ResponseWriter, r *http.Request) {
 
 func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 
-	err := r.ParseForm()
+	if authenticate(r.Header) {
+		w.Write([]byte("authenticated "))
 
-	if err != nil {
-		panic(err)
+		err := r.ParseForm()
+
+		if err != nil {
+			panic(err)
+		}
+
+		urlValues := r.Form
+
+		name := urlValues.Get("name")
+		userid := urlValues.Get("userid")
+		score := urlValues.Get("score")
+		time := urlValues.Get("time")
+		level := urlValues.Get("level")
+
+		query := bson.M{
+			"n":  name,
+			"id": userid,
+			"sc": score,
+			"t":  time,
+			"l":  level,
+		}
+
+		s, err := mgo.Dial("localhost:27017")
+
+		if err != nil {
+			panic(err)
+		}
+
+		c := s.DB("game").C("player")
+
+		err = c.Insert(query)
+
+		if err != nil {
+			panic(err)
+		}
+
+		s.Close()
+	} else {
+		w.Write([]byte("failed to authenticate"))
 	}
-
-	urlValues := r.Form
-
-	name := urlValues.Get("name")
-	userid := urlValues.Get("userid")
-	score := urlValues.Get("score")
-	time := urlValues.Get("time")
-	level := urlValues.Get("level")
-
-	query := bson.M{
-		"n":  name,
-		"id": userid,
-		"sc": score,
-		"t":  time,
-		"l":  level,
-	}
-
-	s, err := mgo.Dial("localhost:27017")
-
-	if err != nil {
-		panic(err)
-	}
-
-	c := s.DB("game").C("player")
-
-	err = c.Insert(query)
-
-	if err != nil {
-		panic(err)
-	}
-
-	s.Close()
 
 }
 
 //CURRENT RELATED
 
 func updateCurrent(w http.ResponseWriter, r *http.Request) {
+	if authenticate(r.Header) {
+		w.Write([]byte("authenticated "))
 
-	err := r.ParseForm()
+		err := r.ParseForm()
 
-	if err != nil {
-		panic(err)
+		if err != nil {
+			panic(err)
+		}
+
+		urlValues := r.Form
+
+		name := urlValues.Get("name")
+		userid := urlValues.Get("userid")
+		perc := urlValues.Get("perc")
+		fperc := urlValues.Get("fperc")
+		color := urlValues.Get("color")
+		fcolor := urlValues.Get("fcolor")
+
+		query := bson.M{
+			"n": name,
+		}
+
+		s, err := mgo.Dial("localhost:27017")
+
+		if err != nil {
+			panic(err)
+		}
+
+		c := s.DB("game").C("current")
+
+		change := bson.M{"$set": bson.M{"id": userid, "p": perc, "fp": fperc, "c": color, "fc": fcolor}}
+		_, err = c.Upsert(query, change)
+
+		if err != nil {
+			panic(err)
+		}
+
+		s.Close()
+	} else {
+		w.Write([]byte("failed to authenticate"))
 	}
-
-	urlValues := r.Form
-
-	name := urlValues.Get("name")
-	userid := urlValues.Get("userid")
-	perc := urlValues.Get("perc")
-	fperc := urlValues.Get("fperc")
-	color := urlValues.Get("color")
-	fcolor := urlValues.Get("fcolor")
-
-	query := bson.M{
-		"n": name,
-	}
-
-	s, err := mgo.Dial("localhost:27017")
-
-	if err != nil {
-		panic(err)
-	}
-
-	c := s.DB("game").C("current")
-
-	change := bson.M{"$set": bson.M{"id": userid, "p": perc, "fp": fperc, "c": color, "fc": fcolor}}
-	_, err = c.Upsert(query, change)
-
-	if err != nil {
-		panic(err)
-	}
-
-	s.Close()
-
 }
 
 func searchCurrent(w http.ResponseWriter, r *http.Request) {
@@ -313,46 +332,52 @@ func displayHistory(w http.ResponseWriter, r *http.Request) {
 
 func insertHistory(w http.ResponseWriter, r *http.Request) {
 
-	err := r.ParseForm()
+	if authenticate(r.Header) {
+		w.Write([]byte("authenticated "))
 
-	if err != nil {
-		panic(err)
+		err := r.ParseForm()
+
+		if err != nil {
+			panic(err)
+		}
+
+		urlValues := r.Form
+
+		name := urlValues.Get("name")
+		userid := urlValues.Get("userid")
+		perc := urlValues.Get("perc")
+		fperc := urlValues.Get("fperc")
+		color := urlValues.Get("color")
+		fcolor := urlValues.Get("fcolor")
+
+		query := bson.M{
+			"n":  name,
+			"id": userid,
+			"p":  perc,
+			"fp": fperc,
+			"c":  color,
+			"fc": fcolor,
+			"ts": time.Now().Format("2006-01-02 15:04:05"),
+		}
+
+		s, err := mgo.Dial("localhost:27017")
+
+		if err != nil {
+			panic(err)
+		}
+
+		c := s.DB("game").C("history")
+
+		err = c.Insert(query)
+
+		if err != nil {
+			panic(err)
+		}
+
+		s.Close()
+	} else {
+		w.Write([]byte("failed to authenticate"))
 	}
-
-	urlValues := r.Form
-
-	name := urlValues.Get("name")
-	userid := urlValues.Get("userid")
-	perc := urlValues.Get("perc")
-	fperc := urlValues.Get("fperc")
-	color := urlValues.Get("color")
-	fcolor := urlValues.Get("fcolor")
-
-	query := bson.M{
-		"n":  name,
-		"id": userid,
-		"p":  perc,
-		"fp": fperc,
-		"c":  color,
-		"fc": fcolor,
-		"ts": time.Now().Format("2006-01-02 15:04:05"),
-	}
-
-	s, err := mgo.Dial("localhost:27017")
-
-	if err != nil {
-		panic(err)
-	}
-
-	c := s.DB("game").C("history")
-
-	err = c.Insert(query)
-
-	if err != nil {
-		panic(err)
-	}
-
-	s.Close()
 
 }
 
@@ -372,13 +397,12 @@ func describe(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(desc))
 }
 
-
 func notAllowed(w http.ResponseWriter, r *http.Request) {
 	msg := "Method Not Allowed"
 
 	w.WriteHeader(405)
 	w.Write([]byte(msg))
-	
+
 }
 
 func notImplemented(w http.ResponseWriter, r *http.Request) {
@@ -386,21 +410,21 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(501)
 	w.Write([]byte(msg))
-	
+
 }
 
-func testAuth(w http.ResponseWriter, r *http.Request){
-	
+func testAuth(w http.ResponseWriter, r *http.Request) {
+
 	if authenticate(r.Header) {
 		w.Write([]byte("authenticated"))
-	} else{
-		w.Write([]byte("skata na fas"))
+	} else {
+		w.Write([]byte("failed to authenticate"))
 	}
-	
+
 }
 
 func authenticate(h http.Header) bool {
-	
+
 	type Auth struct {
 		ApiKey string `bson:"apiKey"`
 	}
@@ -412,15 +436,15 @@ func authenticate(h http.Header) bool {
 	}
 
 	c := s.DB("game").C("authentication")
-	
+
 	query := bson.M{
 		"apiKey": h.Get("key"),
 	}
 
 	results := []Auth{}
 
- 	c.Find(query).All(&results)
-	
+	c.Find(query).All(&results)
+
 	if err != nil {
 		return false
 	}
@@ -430,4 +454,3 @@ func authenticate(h http.Header) bool {
 	}
 	return false
 }
-
