@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 	"strconv"
+        "strings"
 )
 
 //ROUTING
@@ -35,8 +36,8 @@ func main() {
 	//player
 	getSubrouter.HandleFunc("/api/v1/player", searchPlayerData)   //player
 	postSubrouter.HandleFunc("/api/v1/player", registerNewPlayer) //player
-	putSubrouter.HandleFunc("/api/v1/player", insertPlayerData)   //player
-	deleteSubrouter.HandleFunc("/api/v1/player", notImplemented)  //player
+	putSubrouter.HandleFunc("/api/v1/player/{id}", insertPlayerData)  //player
+	deleteSubrouter.HandleFunc("/api/v1/player/{id}", removePlayer)  //player
 
 	//history
 	getSubrouter.HandleFunc("/api/v1/history", displayHistory) //history
@@ -44,9 +45,9 @@ func main() {
 	putSubrouter.HandleFunc("/api/v1/history", notAllowed)     //history
 	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)  //history
 
-	postSubrouter.HandleFunc("/api/v1/testauth", testAuth) //test
 
-	err := http.ListenAndServe(":8081", nil)
+	err := http.ListenAndServeTLS(":8081", "/home/mlab/server.crt", "/home/mlab/server.key", nil)
+	//err := http.ListernAndServe(":8081", nil)
 
 	if err != nil {
 		panic(err)
@@ -170,7 +171,7 @@ func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 
 		urlValues := r.Form
 
-		name := urlValues.Get("name")
+		name := strings.Split(r.URL.Path, "/")[4]
 		userid := urlValues.Get("userid")
 		score := urlValues.Get("score")
 		time := urlValues.Get("time")
@@ -183,7 +184,8 @@ func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 			"t":  time,
 			"l":  level,
 		}
-
+                
+                fmt.Println(query)
 		s, err := mgo.Dial("localhost:27017")
 
 		if err != nil {
@@ -204,6 +206,40 @@ func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func removePlayer(w http.ResponseWriter, r *http.Request) {
+
+	if authenticate(r.Header) {
+		w.Write([]byte("authenticated "))
+
+		name := strings.Split(r.URL.Path, "/")[4]
+
+		query := bson.M{
+			"n":  name,
+		}			
+
+		s, err := mgo.Dial("localhost:27017")
+
+		if err != nil {
+			panic(err)
+		}
+
+		c := s.DB("game").C("player")
+     		fmt.Println(query)
+		err = c.Remove(query)
+
+		if err != nil {
+			panic(err)
+		}
+
+		s.Close()
+	} else {
+		w.Write([]byte("failed to authenticate"))
+	}
+
+}
+
+
 
 //CURRENT RELATED
 
@@ -410,16 +446,6 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(501)
 	w.Write([]byte(msg))
-
-}
-
-func testAuth(w http.ResponseWriter, r *http.Request) {
-
-	if authenticate(r.Header) {
-		w.Write([]byte("authenticated"))
-	} else {
-		w.Write([]byte("failed to authenticate"))
-	}
 
 }
 
