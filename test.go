@@ -7,9 +7,9 @@ import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"net/http"
-	"time"
 	"strconv"
-        "strings"
+	"strings"
+	"time"
 )
 
 //ROUTING
@@ -34,9 +34,9 @@ func main() {
 	deleteSubrouter.HandleFunc("/api/v1/current", notAllowed)  //current
 
 	//player
-	getSubrouter.HandleFunc("/api/v1/player", searchPlayerData)   //player
-	postSubrouter.HandleFunc("/api/v1/player", registerNewPlayer) //player
-	putSubrouter.HandleFunc("/api/v1/player/{id}", insertPlayerData)  //player
+	getSubrouter.HandleFunc("/api/v1/player", searchPlayerData)      //player
+	postSubrouter.HandleFunc("/api/v1/player", registerNewPlayer)    //player
+	postSubrouter.HandleFunc("/api/v1/player/{id}", insertPlayerData) //player
 	deleteSubrouter.HandleFunc("/api/v1/player/{id}", removePlayer)  //player
 
 	//history
@@ -44,7 +44,6 @@ func main() {
 	postSubrouter.HandleFunc("/api/v1/history", insertHistory) //history
 	putSubrouter.HandleFunc("/api/v1/history", notAllowed)     //history
 	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)  //history
-
 
 	err := http.ListenAndServeTLS(":8081", "/home/mlab/server.crt", "/home/mlab/server.key", nil)
 	//err := http.ListernAndServe(":8081", nil)
@@ -136,6 +135,7 @@ func searchPlayerData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlValues := r.URL.Query()
+
 	name := urlValues.Get("name")
 
 	query := bson.M{
@@ -171,8 +171,8 @@ func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 
 		urlValues := r.Form
 
-		name := strings.Split(r.URL.Path, "/")[4]
-		userid := urlValues.Get("userid")
+		name := urlValues.Get("name")
+		userid := strings.Split(r.URL.Path, "/")[4]
 		score := urlValues.Get("score")
 		time := urlValues.Get("time")
 		level := urlValues.Get("level")
@@ -184,8 +184,8 @@ func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 			"t":  time,
 			"l":  level,
 		}
-                
-                fmt.Println(query)
+
+		fmt.Println(query)
 		s, err := mgo.Dial("localhost:27017")
 
 		if err != nil {
@@ -194,7 +194,8 @@ func insertPlayerData(w http.ResponseWriter, r *http.Request) {
 
 		c := s.DB("game").C("player")
 
-		err = c.Insert(query)
+		u := bson.M{"id": userid}
+		err = c.Update(u, query)
 
 		if err != nil {
 			panic(err)
@@ -215,8 +216,8 @@ func removePlayer(w http.ResponseWriter, r *http.Request) {
 		name := strings.Split(r.URL.Path, "/")[4]
 
 		query := bson.M{
-			"n":  name,
-		}			
+			"n": name,
+		}
 
 		s, err := mgo.Dial("localhost:27017")
 
@@ -225,7 +226,7 @@ func removePlayer(w http.ResponseWriter, r *http.Request) {
 		}
 
 		c := s.DB("game").C("player")
-     		fmt.Println(query)
+		fmt.Println(query)
 		err = c.Remove(query)
 
 		if err != nil {
@@ -238,8 +239,6 @@ func removePlayer(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
-
-
 
 //CURRENT RELATED
 
