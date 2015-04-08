@@ -320,7 +320,7 @@ func searchCurrent(w http.ResponseWriter, r *http.Request) {
 		w.Write(out)
 	} else {
 		fmt.Println(len(results))
-		results := searchOutput{name, "-1", "-1", "-1", "-1", "-1"}
+		results := searchOutput{name, "0", "0", "0", "0", "0"}
 		out, _ := json.MarshalIndent(results, " ", "  ")
 		w.Write(out)
 	}
