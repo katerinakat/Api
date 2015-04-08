@@ -46,7 +46,7 @@ func main() {
 	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)  //history
 
 	//err := http.ListenAndServeTLS(":8081", "/home/mlab/server.crt", "/home/mlab/server.key", nil)
-	err := http.ListernAndServe(":8081", nil)
+	err := http.ListenAndServe(":8081", nil)
 
 	if err != nil {
 		panic(err)
