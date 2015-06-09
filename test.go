@@ -361,6 +361,7 @@ func displayHistory(w http.ResponseWriter, r *http.Request) {
 
 	c.Find(query).Sort("ts").All(&results)
 	out, _ := json.MarshalIndent(results, " ", "  ")
+	w.Header().Add("Access-Control-Allow-Origin", "*")	
 	w.Write(out)
 	s.Close()
 }
