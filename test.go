@@ -34,16 +34,17 @@ func main() {
 	deleteSubrouter.HandleFunc("/api/v1/current", notAllowed)  //current
 
 	//player
-	getSubrouter.HandleFunc("/api/v1/player", searchPlayerData)      //player
-	postSubrouter.HandleFunc("/api/v1/player", registerNewPlayer)    //player
+	getSubrouter.HandleFunc("/api/v1/player", searchPlayerData)       //player
+	postSubrouter.HandleFunc("/api/v1/player", registerNewPlayer)     //player
 	postSubrouter.HandleFunc("/api/v1/player/{id}", insertPlayerData) //player
-	deleteSubrouter.HandleFunc("/api/v1/player/{id}", removePlayer)  //player
+	deleteSubrouter.HandleFunc("/api/v1/player/{id}", removePlayer)   //player
 
 	//history
-	getSubrouter.HandleFunc("/api/v1/history", displayHistory) //history
-	postSubrouter.HandleFunc("/api/v1/history", insertHistory) //history
-	putSubrouter.HandleFunc("/api/v1/history", notAllowed)     //history
-	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)  //history
+	getSubrouter.HandleFunc("/api/v1/history", displayHistory)        //history
+	getSubrouter.HandleFunc("/api/v1/history_all", displayAllHistory) //history
+	postSubrouter.HandleFunc("/api/v1/history", insertHistory)        //history
+	putSubrouter.HandleFunc("/api/v1/history", notAllowed)            //history
+	deleteSubrouter.HandleFunc("/api/v1/history", notAllowed)         //history
 
 	//err := http.ListenAndServeTLS(":8081", "/home/mlab/server.crt", "/home/mlab/server.key", nil)
 	err := http.ListenAndServe(":8081", nil)
@@ -330,6 +331,36 @@ func searchCurrent(w http.ResponseWriter, r *http.Request) {
 
 //HISTORY RELATED
 
+func displayAllHistory(w http.ResponseWriter, r *http.Request) {
+
+	type searchOutput struct {
+		Name      string `bson:"n"`
+		UserID    string `bson:"id"`
+		Perc      string `bson:"p"`
+		FPerc     string `bson:"fp"`
+		Color     string `bson:"c"`
+		FColor    string `bson:"fc"`
+		TimeStamp string `bson:"ts"`
+	}
+
+	s, err := mgo.Dial("localhost:27017")
+
+	if err != nil {
+		panic(err)
+	}
+
+	c := s.DB("game").C("history")
+
+	results := []searchOutput{}
+
+	c.Find(nil).Sort("ts").All(&results)
+
+	out, _ := json.MarshalIndent(results, " ", "  ")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Write(out)
+	s.Close()
+}
+
 func displayHistory(w http.ResponseWriter, r *http.Request) {
 
 	type searchOutput struct {
@@ -361,7 +392,7 @@ func displayHistory(w http.ResponseWriter, r *http.Request) {
 
 	c.Find(query).Sort("ts").All(&results)
 	out, _ := json.MarshalIndent(results, " ", "  ")
-	w.Header().Add("Access-Control-Allow-Origin", "*")	
+	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Write(out)
 	s.Close()
 }
